@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -22,8 +21,8 @@ func main() {
 	fmt.Printf("Script Version: %s\n", version)
 
 	// Wait for the user to press any key to continue
-	fmt.Println("Press any key to continue...")
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	fmt.Println("Press ENTER to continue...")
+	fmt.Scanln()
 
 	// Step 1: Call the API endpoint and get the plain text response
 	response, err := http.Get(apiURL)
@@ -117,5 +116,5 @@ func main() {
 
 	// Step 4: Show a confirmation message before closing
 	fmt.Println("\nOperation completed. Press Enter to exit.")
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	fmt.Scanln()
 }
