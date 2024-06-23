@@ -7,12 +7,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 const (
-	apiURL      = "https://raw.githubusercontent.com/amcsi/magyar-master-duel-hex-kodok/master/codes.txt"
+	apiURL      = "http://example.com/api/endpoint" // Replace with your actual API endpoint
 	version     = "1.0.0"
 	mainDataDir = "main_data"
 )
@@ -87,29 +88,29 @@ func main() {
 		linkTarget := mainDataPath
 
 		if info, err := os.Lstat(folderPath); err == nil {
-			if info.Mode()&os.ModeSymlink != 0 {
-				// a) Folder is a symlink, leave it alone
-				fmt.Printf("Folder %s is a symlink, leaving it alone.\n", folder)
+			if info.Mode()&os.ModeSymlink != 0 || isJunction(folderPath) {
+				// a) Folder is a symlink or junction, leave it alone
+				fmt.Printf("Folder %s is a symlink or junction, leaving it alone.\n", folder)
 				continue
 			} else {
-				// b) Folder is a regular folder, delete it and create a symlink
+				// b) Folder is a regular folder, delete it and create a junction
 				err = os.RemoveAll(folderPath)
 				if err != nil {
 					log.Fatalf("Error removing folder %s: %v", folder, err)
 				}
-				err = os.Symlink(linkTarget, folderPath)
+				err = createJunction(folderPath, linkTarget)
 				if err != nil {
-					log.Fatalf("Error creating symlink for folder %s: %v", folder, err)
+					log.Fatalf("Error creating junction for folder %s: %v", folder, err)
 				}
-				fmt.Printf("Folder %s was a regular folder, replaced it with a symlink.\n", folder)
+				fmt.Printf("Folder %s was a regular folder, replaced it with a junction.\n", folder)
 			}
 		} else if os.IsNotExist(err) {
-			// c) Folder did not exist, create a symlink
-			err = os.Symlink(linkTarget, folderPath)
+			// c) Folder did not exist, create a junction
+			err = createJunction(folderPath, linkTarget)
 			if err != nil {
-				log.Fatalf("Error creating symlink for folder %s: %v", folder, err)
+				log.Fatalf("Error creating junction for folder %s: %v", folder, err)
 			}
-			fmt.Printf("Folder %s did not exist, created a symlink.\n", folder)
+			fmt.Printf("Folder %s did not exist, created a junction.\n", folder)
 		} else {
 			log.Fatalf("Error checking folder %s: %v", folder, err)
 		}
@@ -118,4 +119,16 @@ func main() {
 	// Step 4: Show a confirmation message before closing
 	fmt.Println("Operation completed. Press Enter to exit.")
 	fmt.Scanln()
+}
+
+func createJunction(source, target string) error {
+	cmd := exec.Command("cmd", "/C", "mklink", "/J", source, target)
+	err := cmd.Run()
+	return err
+}
+
+func isJunction(path string) bool {
+	cmd := exec.Command("cmd", "/C", "fsutil", "reparsepoint", "query", path)
+	err := cmd.Run()
+	return err == nil
 }
