@@ -116,6 +116,6 @@ func main() {
 	}
 
 	// Step 4: Show a confirmation message before closing
-	fmt.Println("Operation completed. Press Enter to exit.")
-	fmt.Scanln()
+	fmt.Println("\nOperation completed. Press Enter to exit.")
+	bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
