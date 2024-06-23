@@ -9,23 +9,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 const (
-	apiURL      = "https://amcsi.github.io/magyar-master-duel-hex-kodok/codes.txt" // Replace with your actual API endpoint
-	version     = "1.0.1"
+	apiURL      = "https://raw.githubusercontent.com/amcsi/magyar-master-duel-hex-kodok/master/codes.txt"
+	version     = "1.1.0"
 	mainDataDir = "main_data"
 )
 
 func main() {
-	// Check if the script is running with elevated privileges
-	if !isElevated() {
-		fmt.Println("Requesting elevated privileges to create symbolic links...")
-		requestElevation()
-		return
-	}
-
 	// Output the version number of the script
 	fmt.Printf("Script Version: %s\n", version)
 
@@ -95,29 +87,29 @@ func main() {
 		linkTarget := mainDataPath
 
 		if info, err := os.Lstat(folderPath); err == nil {
-			if info.Mode()&os.ModeSymlink != 0 {
-				// a) Folder is a symlink, leave it alone
-				fmt.Printf("Folder %s is a symlink, leaving it alone.\n", folder)
+			if info.Mode()&os.ModeSymlink != 0 || isJunction(folderPath) {
+				// a) Folder is a symlink or junction, leave it alone
+				fmt.Printf("Folder %s is a symlink or junction, leaving it alone.\n", folder)
 				continue
 			} else {
-				// b) Folder is a regular folder, delete it and create a symlink
+				// b) Folder is a regular folder, delete it and create a junction
 				err = os.RemoveAll(folderPath)
 				if err != nil {
 					log.Fatalf("Error removing folder %s: %v", folder, err)
 				}
-				err = os.Symlink(linkTarget, folderPath)
+				err = createJunction(folderPath, linkTarget)
 				if err != nil {
-					log.Fatalf("Error creating symlink for folder %s: %v", folder, err)
+					log.Fatalf("Error creating junction for folder %s: %v", folder, err)
 				}
-				fmt.Printf("Folder %s was a regular folder, replaced it with a symlink.\n", folder)
+				fmt.Printf("Folder %s was a regular folder, replaced it with a junction.\n", folder)
 			}
 		} else if os.IsNotExist(err) {
-			// c) Folder did not exist, create a symlink
-			err = os.Symlink(linkTarget, folderPath)
+			// c) Folder did not exist, create a junction
+			err = createJunction(folderPath, linkTarget)
 			if err != nil {
-				log.Fatalf("Error creating symlink for folder %s: %v", folder, err)
+				log.Fatalf("Error creating junction for folder %s: %v", folder, err)
 			}
-			fmt.Printf("Folder %s did not exist, created a symlink.\n", folder)
+			fmt.Printf("Folder %s did not exist, created a junction.\n", folder)
 		} else {
 			log.Fatalf("Error checking folder %s: %v", folder, err)
 		}
@@ -128,30 +120,14 @@ func main() {
 	fmt.Scanln()
 }
 
-// isElevated checks if the script is running with elevated privileges
-func isElevated() bool {
-	c := exec.Command("powershell", "-Command", "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)")
-	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	output, err := c.Output()
-	if err != nil {
-		log.Fatalf("Error checking elevation status: %v", err)
-	}
-	return strings.TrimSpace(string(output)) == "True"
+func createJunction(source, target string) error {
+	cmd := exec.Command("cmd", "/C", "mklink", "/J", source, target)
+	err := cmd.Run()
+	return err
 }
 
-// requestElevation relaunches the script with elevated privileges
-func requestElevation() {
-	exe, err := os.Executable()
-	if err != nil {
-		log.Fatalf("Error getting executable path: %v", err)
-	}
-
-	c := exec.Command("powershell", "-Command", "Start-Process", exe, "-Verb", "runAs")
-	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	err = c.Start()
-	if err != nil {
-		log.Fatalf("Error requesting elevation: %v", err)
-	}
-	fmt.Println("Elevated privileges requested. Please approve the UAC prompt.")
-	os.Exit(0)
+func isJunction(path string) bool {
+	cmd := exec.Command("cmd", "/C", "fsutil", "reparsepoint", "query", path)
+	err := cmd.Run()
+	return err == nil
 }
