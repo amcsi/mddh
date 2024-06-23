@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	apiURL      = "https://raw.githubusercontent.com/amcsi/magyar-master-duel-hex-kodok/master/codes.txt" // Replace with your actual API endpoint
-	version     = "1.0.0"
+	apiURL      = "https://amcsi.github.io/magyar-master-duel-hex-kodok/codes.txt" // Replace with your actual API endpoint
+	version     = "1.0.1"
 	mainDataDir = "main_data"
 )
 
