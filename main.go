@@ -1,7 +1,7 @@
 package main
 
 import (
-    "encoding/json"
+    "bufio"
     "fmt"
     "io/ioutil"
     "log"
@@ -11,10 +11,21 @@ import (
     "strings"
 )
 
-const apiURL = "http://example.com/api/endpoint" // Replace with your actual API endpoint
+const (
+    apiURL     = "http://example.com/api/endpoint" // Replace with your actual API endpoint
+    version    = "1.0.0"
+    mainDataDir = "main_data"
+)
 
 func main() {
-    // Step 1: Call the API endpoint and get the JSON array of strings
+    // Output the version number of the script
+    fmt.Printf("Script Version: %s\n", version)
+    
+    // Wait for the user to press any key to continue
+    fmt.Println("Press any key to continue...")
+    bufio.NewReader(os.Stdin).ReadBytes('\n')
+    
+    // Step 1: Call the API endpoint and get the plain text response
     response, err := http.Get(apiURL)
     if err != nil {
         log.Fatalf("Error fetching API data: %v", err)
@@ -26,10 +37,9 @@ func main() {
         log.Fatalf("Error reading API response: %v", err)
     }
 
-    var folders []string
-    err = json.Unmarshal(body, &folders)
-    if err != nil {
-        log.Fatalf("Error unmarshalling JSON: %v", err)
+    folders := strings.Split(string(body), "\n")
+    for i := range folders {
+        folders[i] = strings.TrimSpace(folders[i])
     }
 
     // Step 2: Check for the "main_data" folder
@@ -38,7 +48,7 @@ func main() {
         log.Fatalf("Error getting current working directory: %v", err)
     }
 
-    mainDataPath := filepath.Join(cwd, "main_data")
+    mainDataPath := filepath.Join(cwd, mainDataDir)
     if _, err := os.Stat(mainDataPath); os.IsNotExist(err) {
         // Find the first folder and rename it to "main_data"
         files, err := ioutil.ReadDir(cwd)
@@ -69,8 +79,12 @@ func main() {
 
     // Step 3: Create or modify folders based on the strings received
     for _, folder := range folders {
+        if folder == "" {
+            continue
+        }
+
         folderPath := filepath.Join(cwd, folder)
-        linkTarget := filepath.Join(cwd, "main_data")
+        linkTarget := mainDataPath
 
         if info, err := os.Lstat(folderPath); err == nil {
             if info.Mode()&os.ModeSymlink != 0 {
