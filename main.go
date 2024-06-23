@@ -6,17 +6,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 const (
-	apiURL      = "https://raw.githubusercontent.com/amcsi/magyar-master-duel-hex-kodok/master/codes.txt"
+	apiURL      = "https://raw.githubusercontent.com/amcsi/magyar-master-duel-hex-kodok/master/codes.txt" // Replace with your actual API endpoint
 	version     = "1.0.0"
 	mainDataDir = "main_data"
 )
 
 func main() {
+	// Check if the script is running with elevated privileges
+	if !isElevated() {
+		fmt.Println("Requesting elevated privileges to create symbolic links...")
+		requestElevation()
+		return
+	}
+
 	// Output the version number of the script
 	fmt.Printf("Script Version: %s\n", version)
 
@@ -115,6 +124,34 @@ func main() {
 	}
 
 	// Step 4: Show a confirmation message before closing
-	fmt.Println("\nOperation completed. Press Enter to exit.")
+	fmt.Println("Operation completed. Press Enter to exit.")
 	fmt.Scanln()
+}
+
+// isElevated checks if the script is running with elevated privileges
+func isElevated() bool {
+	c := exec.Command("powershell", "-Command", "([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)")
+	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	output, err := c.Output()
+	if err != nil {
+		log.Fatalf("Error checking elevation status: %v", err)
+	}
+	return strings.TrimSpace(string(output)) == "True"
+}
+
+// requestElevation relaunches the script with elevated privileges
+func requestElevation() {
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Error getting executable path: %v", err)
+	}
+
+	c := exec.Command("powershell", "-Command", "Start-Process", exe, "-Verb", "runAs")
+	c.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	err = c.Start()
+	if err != nil {
+		log.Fatalf("Error requesting elevation: %v", err)
+	}
+	fmt.Println("Elevated privileges requested. Please approve the UAC prompt.")
+	os.Exit(0)
 }
